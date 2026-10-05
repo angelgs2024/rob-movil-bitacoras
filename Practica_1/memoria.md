@@ -87,13 +87,13 @@ Para esta máquina de estados hemos creado 4 estados: FORWARD, BACK, TURN, SPIN.
 
   El estado BACK se activa cuando se encuentra un obstaculo a menos de 0.25 m del robot.
 
-  Lo que hacemos en este estado es darnos la vuelta (360 grados) fijando la velocidad linear a 0 y la velocidad angular a 3.14 rad y cuando el obstáculo más cercano está a mas de 0.25 m transicionamos al estado TURN.
+  Lo que hacemos en este estado es retroceder fijando la velocidad linear a 0.3 y la velocidad angular a 0 y cuando el obstáculo más cercano está a mas de 0.25 m transicionamos al estado TURN.
   
 * TURN:
 
-  El estado TURN se activa justo después de ejecutarse el estado BACK y en él lo que hacemos es girar un ángulo aleatorio entre 90 grados y -90 grados para poder aportar al sistema mayor aleatoriedad.
+  El estado TURN se activa justo después de ejecutarse el estado BACK y en él lo que hacemos es girar durante un perioro de tiempo aleatorio para poder aportar al sistema mayor aleatoriedad. El tiempo que está girando se determina según las iteraciones, ya que elegimos un numero aleatorio del 1 al 100000 y transiciona cuando el número de iteraciones es mayor a este número aleatorio.
 
-  Después de ejecutarse lo que hacemos es transicionar al estado FORWARD ya que sabemos con seguridad que como el movimiento va a ser en sentido contrario al obstaculo vamos a estar seguros.
+  Después de ejecutarse lo que hacemos es transicionar al estado FORWARD.
   
 * SPIN:
 
@@ -105,4 +105,10 @@ Para esta máquina de estados hemos creado 4 estados: FORWARD, BACK, TURN, SPIN.
 
   Si detecta un  un obstáculo a menos de 0.25 m transiciona al estado BACK.
 
-    
+### VIDEO de demostración
+
+Aquí he adjuntado un video en el que podemos ver el mapa completo de la casa y la terminal en la cual se irán imprimiendo las transiciones entre estados.
+
+
+[Video_Practica1.webm](https://github.com/user-attachments/assets/8cd874d2-8add-49df-9cd9-7782cabc6d91)
+
