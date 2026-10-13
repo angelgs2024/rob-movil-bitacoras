@@ -161,6 +161,91 @@ Con esta estrategia:
 
 Este ajuste **no forma parte del PD angular**: es una regulación proporcional independiente de la velocidad lineal. Las unidades físicas de `V` y `u` dependen de la interfaz del simulador; aquí analizo los valores enviados por el código sin asumir una conversión a m/s o rad/s.
 
+
+### 4. Búsqueda y recuperación de la línea
+
+Para mejorar la autonomía del robot, he añadido un sistema que permite **buscar la línea roja cuando no se encuentra dentro del campo de visión de la cámara**. De esta manera, el robot no depende de detectar la línea desde el inicio y puede intentar recuperarla si la pierde durante el recorrido.
+
+Para ello, utilizo las siguientes variables:
+
+```python
+linea_encontrada = False
+ultima_direccion = 1
+direccion_busqueda = 1
+contador_busqueda = 0
+```
+
+- **`linea_encontrada`:** indica si el robot ha detectado la línea al menos una vez.
+- **`ultima_direccion`:** almacena el sentido de giro hacia el que debe intentar recuperar la línea.
+- **`direccion_busqueda`:** determina hacia qué lado gira durante la búsqueda inicial.
+- **`contador_busqueda`:** permite cambiar periódicamente el sentido de giro.
+
+El algoritmo distingue tres situaciones:
+
+#### 1. Búsqueda inicial (`SEARCH_LINE`)
+
+Si el robot todavía no ha encontrado la línea, comienza a avanzar lentamente con una velocidad lineal de `2`, mientras realiza giros alternos.
+
+```python
+HAL.setV(2)
+
+if not linea_encontrada:
+    HAL.setW(0.2 * direccion_busqueda)
+
+    contador_busqueda += 1
+
+    if contador_busqueda >= 60:
+        direccion_busqueda *= -1
+        contador_busqueda = 0
+```
+
+La velocidad angular se establece en `0.2`, buscando que el robot realice correcciones suaves mientras avanza.
+
+Cada **60 iteraciones** se invierte el sentido de giro multiplicando `direccion_busqueda` por `-1`, generando una trayectoria de búsqueda en zigzag.
+
+Con este comportamiento, el robot intenta explorar diferentes direcciones hasta detectar la línea roja.
+
+#### 2. Recuperación de la línea (`RECOVERY`)
+
+Si el robot ya había detectado la línea anteriormente, pero deja de verla, utiliza la última dirección conocida para intentar recuperarla.
+
+```python
+else:
+    HAL.setW(0.3 * ultima_direccion)
+```
+
+En esta situación mantiene una velocidad lineal de `2` y utiliza una velocidad angular de `0.3`, ligeramente superior a la empleada en la búsqueda inicial, para intentar regresar hacia la línea.
+
+La variable `ultima_direccion` se actualiza durante el seguimiento en función de la posición de la línea respecto al punto objetivo:
+
+```python
+if abs(error) > 15:
+    ultima_direccion = -1 if error > 0 else 1
+```
+
+De esta manera, el robot recuerda el último sentido de corrección utilizado cuando la línea estaba suficientemente desplazada del centro.
+
+#### 3. Retorno al seguimiento (`FOLLOW_LINE`)
+
+Cuando la cámara vuelve a detectar la línea roja, el robot abandona automáticamente el comportamiento de búsqueda y vuelve a utilizar el controlador PD para corregir su trayectoria.
+
+Además, se actualizan las variables:
+
+```python
+linea_encontrada = True
+siguiendo = True
+contador_busqueda = 0
+```
+
+La variable `siguiendo` permite evitar un cambio brusco en la componente derivativa cuando se recupera la línea, ya que en la primera iteración después de la búsqueda se establece `d_error = 0`.
+
+De esta manera, el sistema recuerda que la línea ya ha sido localizada y reinicia el contador utilizado durante la búsqueda inicial.
+
+Este mecanismo permite que el robot tenga un comportamiento más autónomo, al combinar el **seguimiento visual mediante un controlador PD** con un procedimiento de **búsqueda y recuperación de la trayectoria**.
+
+No obstante, la búsqueda no garantiza encontrar siempre la línea, ya que depende de que esta llegue a aparecer dentro del campo de visión de la cámara.
+
+
 ## Análisis de los parámetros elegidos
 
 Los parámetros finales del código son `Kp = 0.01`, `Kd = 0.06`, `Kv = 0.04` y una velocidad lineal de referencia de `16`.
@@ -172,6 +257,8 @@ Con un valor de **`Kp = 0.01`**, la acción proporcional es relativamente suave:
 La ganancia **`Kd = 0.06`** hace que el controlador responda con mayor intensidad a variaciones rápidas del error. Por ejemplo, si el error pasa de `40` a `50` píxeles en una iteración:
 
 Sin acción derivativa, la orden habría sido `-0.5`. La derivada aumenta la corrección en este caso porque el error está creciendo. Si el error estuviera disminuyendo, el término derivativo actuaría en sentido contrario a la componente proporcional y podría contribuir a amortiguar el giro.
+
+
 
 ## Conclusión
 
