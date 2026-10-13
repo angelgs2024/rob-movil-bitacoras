@@ -73,10 +73,6 @@ if M["m00"] != 0:
 
 El momento `m00` representa el área ponderada de la máscara; `m10` y `m01` permiten calcular las coordenadas del centroide:
 
-$$
-c_x = \frac{M_{10}}{M_{00}}, \qquad c_y = \frac{M_{01}}{M_{00}}
-$$
-
 Compruebo que `m00` sea distinto de cero para evitar una división por cero cuando no se detecta ningún píxel rojo. Por último, marco el punto calculado sobre la imagen procesada y la muestro:
 
 ```python
@@ -92,19 +88,6 @@ En el seguimiento utilizo **únicamente `cx`**, ya que el control se basa en el 
 
 El programa se ejecuta en un bucle continuo que **captura, detecta, calcula y corrige**:
 
-```mermaid
-flowchart TD
-    A[Capturar imagen de la cámara] --> B[Convertir de BGR a HSV]
-    B --> C[Crear y unir las dos máscaras del rojo]
-    C --> D[Calcular centroide de la detección]
-    D --> E[Calcular error y variación del error]
-    E --> F[Controlador PD: velocidad angular]
-    E --> G[Ajuste de la velocidad lineal]
-    F --> H[Enviar velocidades al robot]
-    G --> H
-    H --> A
-```
-
 ### 1. Definición del punto objetivo
 
 ```python
@@ -113,17 +96,13 @@ error = 0
 error_anterior = 0
 ```
 
-Establezco el **punto objetivo en `x = 318`**, que representa la posición horizontal en la que quiero mantener el centroide de la línea. Es un valor cercano al centro de una imagen de 640 píxeles de ancho, aunque el código no comprueba expresamente la resolución.
+Establezco el **punto objetivo en `x = 318`**, que representa la posición horizontal en la que quiero mantener el centroide de la línea. Valor obtenido imprimiendo el punto central con el coche en parado.
 
 En cada iteración calculo el error:
 
 ```python
 error = point_x - point_objetivo
 ```
-
-$$
-e(k) = x_{\text{línea}}(k) - 318
-$$
 
 - **Error igual a cero:** la línea está situada en el punto objetivo.
 - **Error positivo:** el centroide se encuentra a la derecha de dicho punto.
@@ -150,12 +129,6 @@ u = -Kp * error - Kd * d_error
 HAL.setW(u)
 ```
 
-La ley de control discreta utilizada es:
-
-$$
-\omega(k) = -K_p\,e(k) - K_d\,[e(k)-e(k-1)]
-$$
-
 Donde:
 
 | Parámetro | Valor | Función |
@@ -180,12 +153,6 @@ V = 16 - Kv * abs(error)
 HAL.setV(V)
 ```
 
-La expresión utilizada es:
-
-$$
-v(k) = 16 - 0.04\,|e(k)|
-$$
-
 Con esta estrategia:
 
 - Cuando el robot está alineado, el error es pequeño y puede avanzar a mayor velocidad.
@@ -204,54 +171,7 @@ Con un valor de **`Kp = 0.01`**, la acción proporcional es relativamente suave:
 
 La ganancia **`Kd = 0.06`** hace que el controlador responda con mayor intensidad a variaciones rápidas del error. Por ejemplo, si el error pasa de `40` a `50` píxeles en una iteración:
 
-$$
-\begin{aligned}
-e &= 50 \\
-\Delta e &= 50-40=10 \\
-\omega &= -0.01(50)-0.06(10) = -1.1
-\end{aligned}
-$$
-
 Sin acción derivativa, la orden habría sido `-0.5`. La derivada aumenta la corrección en este caso porque el error está creciendo. Si el error estuviera disminuyendo, el término derivativo actuaría en sentido contrario a la componente proporcional y podría contribuir a amortiguar el giro.
-
-No obstante, **un `Kd` elevado también amplifica el ruido de la detección visual**: pequeños desplazamientos del centroide entre imágenes pueden generar cambios importantes en la velocidad angular. Por eso hay un compromiso entre rapidez de respuesta y estabilidad. Que `Kd` sea numéricamente seis veces `Kp` no significa que su efecto sea siempre seis veces mayor, ya que multiplican magnitudes distintas (`Δe` frente a `e`).
-
-### Influencia de `Kv` sobre el avance
-
-La siguiente tabla muestra los valores **calculados a partir de la fórmula**, no mediciones experimentales del robot:
-
-| Error absoluto (`|e|`) | Velocidad lineal `V = 16 - 0.04·|e|` |
-| ---: | ---: |
-| `0` píxeles | `16` |
-| `50` píxeles | `14` |
-| `100` píxeles | `12` |
-| `200` píxeles | `8` |
-| `300` píxeles | `4` |
-
-Por tanto, la velocidad disminuye de forma lineal cuanto mayor es el desplazamiento detectado. El valor **`Kv = 0.04`** determina cuánto se reduce el avance por cada píxel de error.
-
-### Ejemplos de respuesta angular
-
-| Error actual `e` | Error anterior | Variación `Δe` | Orden angular `u` |
-| ---: | ---: | ---: | ---: |
-| `0` | `0` | `0` | `0` |
-| `50` | `50` | `0` | `-0.5` |
-| `50` | `40` | `10` | `-1.1` |
-| `50` | `60` | `-10` | `0.1` |
-
-Estos ejemplos muestran por qué no basta con conocer dónde está la línea: el PD también tiene en cuenta **cómo está cambiando el error**.
-
-## Limitaciones y posibles mejoras
-
-Aunque la implementación permite construir un seguidor visual con control PD, he identificado algunos aspectos que convendría mejorar:
-
-- **Pérdida de la línea:** si no aparece ningún píxel rojo, la función devuelve inicialmente `(0, 0)`. Entonces el programa interpreta un error de `-318` píxeles y sigue enviando órdenes de movimiento, aunque en realidad no conoce la posición de la línea. Sería más seguro detectar expresamente esta situación y detener o iniciar una búsqueda controlada.
-- **Ruido y reflejos:** el cálculo utiliza el centroide de *todos* los píxeles rojos de la imagen. Si aparecen otros objetos rojos o reflejos, el resultado puede desviarse de la línea real.
-- **Ausencia de región de interés:** al procesar toda la imagen, el centroide puede representar un tramo amplio de línea. Trabajar sobre una franja inferior de la imagen podría ofrecer una referencia más cercana a la trayectoria inmediata del robot.
-- **Término derivativo sin tiempo:** dividir la diferencia de errores por el intervalo de muestreo y filtrar su resultado permitiría controlar mejor la sensibilidad al ruido y a los cambios de frecuencia.
-- **Velocidades sin límites explícitos:** el código no limita `u` ni impone una velocidad mínima/máxima a `V`. Sería conveniente incorporar saturación para evitar órdenes excesivas o velocidades negativas ante errores anómalos.
-- **Procesamiento redundante:** dentro de `detect_red()` se recorren los dos intervalos de `boundaries`, pero en ambas iteraciones se vuelve a utilizar exactamente la misma unión de máscaras. Este bucle no modifica el resultado y podría eliminarse.
-- **Visualización en HSV:** `output` se genera en HSV, mientras que la visualización suele esperar BGR. Convertirlo de vuelta a BGR antes de mostrarlo permitiría representar los colores correctamente.
 
 ## Conclusión
 
