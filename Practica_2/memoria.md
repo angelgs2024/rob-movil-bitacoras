@@ -270,4 +270,4 @@ La estructura propuesta es sencilla y permite seguir desarrollando el sistema me
 
 ## Vídeo de demostración
 
-<!-- Añadir aquí el vídeo de la práctica o su enlace a GitHub cuando esté disponible. -->
+https://github.com/user-attachments/assets/b1e107ec-87dd-43cc-ab7a-4e4f2abdc617
