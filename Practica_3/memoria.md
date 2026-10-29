@@ -262,16 +262,6 @@ target_new = [
 ]
 ```
 
-Matemáticamente:
-
-$$
-\vec F_{atraccion}=450\frac{\vec T}{\|\vec T\|}
-$$
-
-Donde `T` representa el vector hacia el objetivo.
-
-La normalización permite que la fuerza tenga un módulo constante de **450**, independientemente de la distancia al objetivo, siempre que esta sea distinta de cero.
-
 Con ello, la fuerza de atracción representa la dirección hacia la que quiero desplazarme, manteniendo una intensidad constante.
 
 ### 3. Ponderación de la fuerza de los obstáculos
@@ -285,18 +275,6 @@ obstacle_new = [0, obstacle[1] * K]
 ```
 
 Con ello, multiplico por cinco la componente lateral obtenida a partir del láser.
-
-La fuerza de repulsión resultante es:
-
-$$
-\vec F_{repulsion}=
-\begin{bmatrix}
-0\\
-5F_y
-\end{bmatrix}
-$$
-
-Esta ponderación permite ajustar la importancia de los obstáculos respecto a la fuerza de atracción.
 
 He mantenido la componente X igual a cero para que la repulsión actúe exclusivamente modificando la dirección lateral de navegación, sin introducir una fuerza longitudinal contraria al avance.
 
@@ -324,16 +302,6 @@ De esta manera, el vector resultante representa un compromiso entre **avanzar ha
 Cuando la influencia de los obstáculos es pequeña, la dirección resultante se aproxima a la del objetivo.
 
 Cuando aparece un obstáculo cercano, aumenta la componente lateral de repulsión y se modifica la dirección de navegación.
-
-La expresión utilizada en el programa es:
-
-$$
-\vec F_{resultante}=
-\begin{bmatrix}
-450\frac{T_x}{\|\vec T\|}\\
-450\frac{T_y}{\|\vec T\|}+5F_y
-\end{bmatrix}
-$$
 
 ### 5. Control proporcional de la velocidad angular
 
