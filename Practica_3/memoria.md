@@ -505,42 +505,6 @@ Por ejemplo, manteniendo constante el ángulo, un obstáculo a 2 metros genera u
 
 De esta forma, los obstáculos más próximos tienen una influencia mayor en la dirección de navegación.
 
-## Limitaciones de la implementación
-
-Aunque la estrategia permite combinar la navegación hacia objetivos con la evasión de obstáculos, presenta algunas limitaciones importantes.
-
-**1. Velocidad lineal constante**
-
-El robot mantiene una velocidad lineal solicitada de `6` incluso cuando encuentra obstáculos cercanos. Por tanto, la implementación no reduce automáticamente la velocidad ante situaciones de riesgo.
-
-**2. Ausencia de repulsión longitudinal**
-
-Al mantener la componente X de la fuerza de repulsión en cero, el algoritmo no genera una acción de frenado o retroceso. La evasión depende de que el robot pueda modificar suficientemente su orientación.
-
-**3. Obstáculos exactamente frontales**
-
-Si el obstáculo más cercano está situado exactamente a 0°, el refuerzo frontal no selecciona un sentido de giro.
-
-En una situación simétrica, también pueden cancelarse las contribuciones laterales de los distintos rayos.
-
-**4. Posibles divisiones por cero**
-
-Al normalizar los vectores de atracción y repulsión, el código no comprueba si sus módulos son cero.
-
-Por ejemplo, si no existe fuerza de repulsión lateral, la normalización de `obsForce` puede provocar un error de división por cero.
-
-**5. Posibles oscilaciones y mínimos locales**
-
-La combinación de fuerzas no garantiza encontrar una trayectoria libre de obstáculos.
-
-En determinadas configuraciones, el robot podría oscilar entre distintas direcciones o quedar orientado hacia una dirección que no permita avanzar hacia el objetivo.
-
-**6. Diferencia entre coordenadas de control y visualización**
-
-El algoritmo calcula la fuerza de atracción utilizando coordenadas relativas, mientras que `WebGUI.showLocalTarget()` recibe las coordenadas absolutas del objetivo.
-
-Por tanto, es necesario que la interfaz interprete correctamente el sistema de referencia utilizado para mostrar el punto en la posición esperada.
-
 ## Conclusión
 
 En esta práctica he desarrollado un algoritmo de **navegación autónoma basado en fuerzas virtuales**, combinando la atracción hacia los objetivos con la repulsión generada por los obstáculos detectados mediante un sensor láser.
