@@ -205,18 +205,6 @@ De esta manera:
 
 - Si el obstáculo se encuentra **a la derecha**, añado una fuerza positiva que favorece la evasión hacia la izquierda.
 - Si el obstáculo se encuentra **a la izquierda**, añado una fuerza negativa que favorece la evasión hacia la derecha.
-
-La expresión de esta fuerza adicional es:
-
-$$
-F_{frontal,y}=
-\begin{cases}
-+\dfrac{K_f}{d_{min}^2} & \theta_{min}<0\\
--\dfrac{K_f}{d_{min}^2} & \theta_{min}>0\\
-0 & \theta_{min}=0
-\end{cases}
-$$
-
 Con `Kf = 20`, doy una mayor importancia al obstáculo frontal más cercano, buscando que el robot realice maniobras de evasión más pronunciadas cuando detecta un obstáculo próximo en su dirección de avance.
 
 La fuerza resultante sigue siendo exclusivamente lateral:
@@ -367,18 +355,6 @@ w = Kp * angle
 HAL.setW(w)
 ```
 
-La velocidad angular se calcula mediante:
-
-$$
-\omega=K_p\theta
-$$
-
-Con:
-
-$$
-K_p=7
-$$
-
 El funcionamiento del controlador es el siguiente:
 
 - **Ángulo positivo:** el robot gira hacia la izquierda.
@@ -412,8 +388,6 @@ if math.hypot(target_x, target_y) < 0.5:
 
 Cuando la distancia es inferior a **0.5 metros**, marco el objetivo como alcanzado.
 
-Así, el sistema puede continuar con el siguiente objetivo de navegación proporcionado por `WebGUI`.
-
 ### 8. Visualización de las fuerzas
 
 Para observar el comportamiento del algoritmo, utilizo:
@@ -436,39 +410,6 @@ La interfaz permite visualizar tres vectores:
 
 Esta representación permite analizar cómo cambia la dirección de navegación según la posición del objetivo y los obstáculos detectados.
 
-## Análisis de los parámetros elegidos
-
-Los parámetros utilizados en la implementación son:
-
-| Parámetro | Valor | Función |
-|---|---:|---|
-| `Kf` | 20 | Refuerzo de la repulsión frontal |
-| `front_angle` | 45° | Región de detección frontal |
-| Distancia mínima | 0.05 m | Límite inferior de las medidas utilizadas |
-| Distancia máxima | 20 m | Alcance considerado para la repulsión |
-| `K` | 5 | Ganancia de la fuerza de los obstáculos |
-| Atracción | 450 | Módulo de la fuerza hacia el objetivo |
-| `Kp` | 7 | Ganancia del controlador angular |
-| Velocidad lineal | 6 | Velocidad de avance solicitada |
-| Tolerancia del objetivo | 0.5 m | Distancia para considerar alcanzado el objetivo |
-
-### Influencia de `Kf`
-
-El parámetro `Kf = 20` controla la intensidad del refuerzo aplicado al obstáculo frontal más cercano.
-
-Un valor mayor provoca una componente de evasión lateral más intensa, mientras que uno menor reduce su influencia.
-
-Su objetivo es compensar la escasa repulsión lateral que pueden generar los obstáculos situados cerca del eje frontal.
-
-### Influencia de `K`
-
-Con `K = 5`, multiplico la fuerza lateral de los obstáculos antes de combinarla con la atracción.
-
-Este parámetro determina cuánto influye la evasión en la dirección final.
-
-- Un valor mayor aumenta la desviación provocada por los obstáculos.
-- Un valor menor hace que el robot priorice más directamente la dirección hacia el objetivo.
-
 ### Influencia de la fuerza de atracción
 
 Al establecer un módulo de atracción de `450`, mantengo una referencia constante hacia el objetivo.
@@ -481,48 +422,24 @@ El valor de 450 permite dar un peso importante a la atracción, aunque la repuls
 
 El parámetro `Kp = 7` determina la intensidad de la corrección angular.
 
-Por ejemplo, si el vector resultante forma un ángulo de `0.5` radianes con el eje frontal:
-
-$$
-\omega=7\cdot0.5=3.5
-$$
-
-El robot solicitará una velocidad angular de `3.5` rad/s.
-
 Un valor mayor de `Kp` produce correcciones más intensas, mientras que uno menor genera giros más suaves.
 
 Con este valor busco que el robot sea capaz de reaccionar rápidamente ante la aparición de obstáculos y los cambios de dirección del objetivo.
 
-Sin embargo, una ganancia elevada también puede generar oscilaciones o movimientos bruscos, especialmente cuando el vector resultante cambia rápidamente.
-
-### Influencia del alcance de detección
-
-He establecido el intervalo de distancias entre `0.05` y `20` metros.
-
-Este rango permite considerar obstáculos situados a mayor distancia, aunque su contribución individual disminuye de forma cuadrática.
-
-Por ejemplo, manteniendo constante el ángulo, un obstáculo a 2 metros genera una contribución cuatro veces menor que otro a 1 metro.
-
-De esta forma, los obstáculos más próximos tienen una influencia mayor en la dirección de navegación.
 
 ## Conclusión
 
 En esta práctica he desarrollado un algoritmo de **navegación autónoma basado en fuerzas virtuales**, combinando la atracción hacia los objetivos con la repulsión generada por los obstáculos detectados mediante un sensor láser.
 
-La principal característica de mi implementación es que la **repulsión actúa exclusivamente sobre la componente lateral**, evitando introducir fuerzas longitudinales negativas.
+La principal característica es que la **repulsión actúa exclusivamente sobre la componente lateral**, evitando introducir fuerzas longitudinales negativas.
 
-Además, he incorporado un refuerzo de evasión frontal que tiene en cuenta el obstáculo más cercano dentro de una región de ±45°, buscando mejorar la respuesta ante obstáculos situados directamente en la dirección de avance.
+Además, he incorporado un refuerzo para obstaculos que se encuentran en la zona central de robot para evitar colisiones frontales y que puedan reaccionar respecto a ellos.
 
 La combinación de ambas fuerzas permite calcular una dirección resultante, que posteriormente utilizo como referencia de un **controlador proporcional de velocidad angular**, con `Kp = 7`.
 
 La utilización de una ganancia elevada busca conseguir una respuesta rápida ante los cambios de dirección, mientras que la velocidad lineal se mantiene constante en `6`.
 
 Por último, utilizo una tolerancia de 0.5 metros para determinar cuándo se alcanza cada objetivo.
-
-El principal desafío de esta estrategia consiste en encontrar un equilibrio adecuado entre la **fuerza de atracción, la fuerza de repulsión y la ganancia proporcional**, para conseguir que el robot se dirija hacia sus objetivos mientras evita los obstáculos sin realizar correcciones excesivas.
-
-La implementación constituye una base para la navegación reactiva mediante fuerzas virtuales, aunque presenta limitaciones relacionadas con la velocidad constante, la cancelación de fuerzas y la ausencia de mecanismos específicos de frenado o seguridad.
-
 
 # Video de demostración
 
