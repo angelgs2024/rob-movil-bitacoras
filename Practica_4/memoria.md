@@ -314,10 +314,4 @@ También es posible que la navegación termine si la cola `frontier` queda vací
 
 ## Video Demostrativo
 
-[Screencast from 2026-11-12 21-39-26.webm](https://github.com/user-attachments/assets/2debcd92-d222-45d1-a075-1f99913f9172)
-
-## Video demostrativo de coreccion de trayectorias
-
-[Screencast from 2026-11-12 21-42-45.webm](https://github.com/user-attachments/assets/74d7d33a-e007-4e99-9d15-98e746f86eca)
-
-He añadido este video ya que se puede observar como en mitad del trazado corrige su trayectoria ya que la penalización a las coordenadas cercanas a obstaculos es demasiado grande para compensar su cercania.
+[Screencast from 2026-11-19 17-20-43.webm](https://github.com/user-attachments/assets/608814e3-f03e-4f0c-b2ab-9fa7e77bc2e0)
