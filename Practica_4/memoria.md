@@ -31,28 +31,15 @@ Para desarrollar la práctica utilizamos las siguientes librerías:
 
 ### 3.1. Obtención de las posiciones inicial y objetivo
 
-En primer lugar, obtenemos el mapa del entorno utilizando `WebGUI.getMap()`.
+Las celdas con valor `0` se consideran obstáculos.
 
-Posteriormente, esperamos a que el usuario seleccione una posición objetivo mediante `WebGUI.getTargetPose()`.
+Al comenzar cada ciclo, leemos la pose del robot mediante `HAL.getPose3d()`. Convertimos sus coordenadas del mundo con `WebGUI.worldToGrid()` y las pasamos a enteros para obtener la celda inicial `start`.
 
-Antes de aceptar el objetivo comprobamos que:
-
-- Se haya seleccionado una posición válida.
-- Sus coordenadas estén dentro de los límites del mapa.
-- La celda seleccionada no corresponda a un obstáculo.
-
-También obtenemos la posición inicial del robot mediante `HAL.getPose3d()`.
-
-Como el algoritmo trabaja sobre una matriz de celdas, convertimos ambas posiciones desde coordenadas del mundo a coordenadas del mapa utilizando `WebGUI.worldToGrid()`.
-
-De esta forma, obtenemos dos posiciones:
-
-- `start`: celda inicial del robot.
-- `target`: celda objetivo.
+A continuación, esperamos un objetivo con `WebGUI.getTargetPose()`. Si obtenemos una posición, también la convertimos a una celda entera `target`. Aceptamos el objetivo cuando la celda está dentro del mapa, está libre y difiere de `ultimo_objetivo`. Ambas variables se comparan en coordenadas de la cuadrícula. `ultimo_objetivo` se inicializa a `None` y se actualiza cuando el robot llega al destino.
 
 ### 3.2. Función `get_succesors(pose)`
 
-Esta función obtiene las **ocho celdas vecinas** de una determinada posición del mapa.
+Esta función obtiene hasta ocho celdas vecinas de una determinada posición del mapa.
 
 Para cada sucesor comprobamos que sus coordenadas se encuentren dentro de los límites de la matriz.
 
@@ -70,11 +57,11 @@ Finalmente, la función devuelve un diccionario donde cada clave representa una 
 
 ### 3.3. Función `near_obstacles(pose)`
 
-Esta función permite **penalizar las celdas próximas a obstáculos**.
+Esta función permite penalizar las celdas próximas a obstáculos.
 
 Para ello, obtenemos los vecinos de la posición mediante `get_succesors()` y comprobamos si alguno corresponde a una celda ocupada.
 
-Si detectamos un obstáculo próximo, devolvemos una penalización de `0.5`. En caso contrario, devolvemos `0`.
+Si detectamos un obstáculo próximo, devolvemos una penalización de `1.5`. En caso contrario, devolvemos `0`.
 
 ```python
 if mapa[i[1], i[0]] == 0:
@@ -83,9 +70,7 @@ if mapa[i[1], i[0]] == 0:
 
 Esta penalización se incorpora al coste de desplazamiento durante la ejecución de Dijkstra.
 
-El objetivo es favorecer las rutas que se encuentren más alejadas de los obstáculos, siempre que el incremento de coste no resulte excesivo.
-
-Esta función únicamente comprueba las ocho celdas vecinas, por lo que no calcula una distancia real a los obstáculos.
+La penalización se aplica una sola vez por celda si al menos uno de sus vecinos es un obstáculo. La comprobación se limita al vecino inmediato.
 
 ## 4. Planificación global mediante Dijkstra
 
@@ -119,11 +104,7 @@ dist, pose = heapq.heappop(frontier)
 
 Una vez seleccionado, comprobamos que no haya sido explorado anteriormente.
 
-Después obtenemos sus sucesores y descartamos aquellos que:
-
-- Ya hayan sido explorados.
-- Correspondan a obstáculos.
-- Supongan un movimiento diagonal que atraviese la esquina entre dos celdas ocupadas.
+Después obtenemos sus sucesores y descartamos las celdas exploradas y las ocupadas.
 
 ### 4.3. Cálculo de las distancias
 
@@ -145,11 +126,9 @@ De esta forma, cada nodo almacena el siguiente punto hacia el objetivo correspon
 
 El algoritmo finaliza cuando alcanzamos la posición inicial del robot o cuando no quedan nodos pendientes de explorar.
 
-Como detenemos la expansión al alcanzar `start`, la matriz puede contener celdas que todavía no hayan sido procesadas.
-
 ## 5. Reconstrucción y visualización de la ruta
 
-Una vez ejecutado Dijkstra, reconstruimos la ruta utilizando el diccionario `padres`.
+Tras calcular los costes, mostramos la matriz con `WebGUI.showNumpy(weights_map)` y reconstruimos la ruta utilizando el diccionario `padres`.
 
 Comenzamos desde la posición inicial y vamos obteniendo sucesivamente el siguiente nodo hacia el objetivo:
 
@@ -164,19 +143,7 @@ while pose != target:
 
 La lista `path` contiene una secuencia ordenada de posiciones desde el inicio hasta el destino.
 
-Posteriormente, utilizamos:
-
-```python
-WebGUI.showPath(np.array(path))
-```
-
-para representar gráficamente la ruta calculada sobre el mapa.
-
-También intentamos mostrar la matriz de distancias mediante:
-
-```python
-WebGUI.showNumpy(weights_map)
-```
+Mostramos la ruta en el mapa e imprimimos el número de desplazamientos entre celdas. Como `path` incluye la celda inicial, una ruta con 18 celdas tiene 17 pasos.
 
 ## 6. Navegación y control del robot
 
@@ -195,7 +162,7 @@ frontier = []
 
 Vaciamos `frontier` para que en cada paso únicamente se tengan en cuenta los sucesores de la posición actual.
 
-Posteriormente, obtenemos los vecinos y descartamos los obstáculos, los nodos explorados y aquellos cuyo peso no sea inferior al de la celda actual.
+Posteriormente, obtenemos los vecinos. Descartamos los obstáculos, los nodos explorados y las celdas con peso infinito o con un peso mayor o igual que el de la celda actual.
 
 Los candidatos se introducen en la cola utilizando:
 
@@ -208,9 +175,9 @@ heapq.heappush(
 
 De esta manera, buscamos avanzar hacia zonas de menor coste, considerando también el coste del siguiente movimiento.
 
-**Es importante diferenciar este procedimiento de la ruta reconstruida:** aunque calculamos y mostramos `path`, el robot no recorre directamente esa lista, sino que selecciona sus siguientes puntos a partir de los pesos de las celdas vecinas.
+El robot elige en cada paso el vecino con menor suma de peso y coste de movimiento. Esta secuencia puede diferir de la ruta visualizada, que se reconstruye siguiendo `padres`.
 
-### 6.2. Cálculo del error de posición
+### 6.2. Cálculo de la distancia
 
 Para desplazarnos hacia cada punto seleccionado, primero convertimos sus coordenadas al sistema del mundo mediante `WebGUI.gridToWorld()`.
 
@@ -220,17 +187,14 @@ Posteriormente, obtenemos la posición actual del robot:
 robot = HAL.getPose3d()
 ```
 
-Y calculamos la distancia euclídea al objetivo
-
-Cuando esta distancia es inferior a `0.8`, consideramos que hemos alcanzado el punto y pasamos a seleccionar el siguiente.
+Calculamos la distancia euclídea al punto seleccionado mediante `math.hypot(dx, dy)`
 
 ### 6.3. Cálculo del error angular
 
-Calculamos el error angular restando la orientación actual del robot menos la orientación del objetivo.
-
-Normalizamos este error al intervalo $[-\pi,\pi]$:
+Calculamos el error angular restando la orientación actual del robot (`robot.yaw`) al rumbo deseado hacia el punto (`math.atan2(dy, dx)`). A continuación, normalizamos el error al intervalo $[-\pi,\pi]$.
 
 ```python
+error = math.atan2(dy, dx) - robot.yaw
 error = math.atan2(math.sin(error), math.cos(error))
 ```
 
@@ -251,25 +215,11 @@ else:
     v = min(1.5, 1.5 * distancia)
 ```
 
-Con este comportamiento buscamos:
-
-- Reducir la velocidad cuando es necesario realizar un giro pronunciado.
-- Mantener una velocidad intermedia durante correcciones moderadas.
-- Aumentar la velocidad cuando el robot se encuentra correctamente orientado.
-
-A diferencia de un control que establece `v = 0` durante los giros, este método mantiene una velocidad de avance positiva, permitiendo que el robot cambie progresivamente su orientación mientras se desplaza.
+La velocidad de avance es menor cuando el robot debe corregir un error angular grande. Cuando el error angular es de hasta `0.4` radianes, ajustamos la velocidad en función de la distancia al punto, con un máximo de `1.5`.
 
 ### 6.5. Control de velocidad angular
 
-Para controlar la orientación utilizamos un **controlador proporcional**:
-
-Con una ganancia proporcional:
-
-```python
-K_p = 1.5
-```
-
-En el código:
+Para controlar la orientación utilizamos un **controlador proporcional** con una ganancia de `1.5` y una saturación entre `-0.8` y `0.8`.
 
 ```python
 w = max(-0.8, min(0.8, 1.5 * error))
@@ -288,29 +238,28 @@ El bucle de control utiliza `Frequency.tick()` para regular la frecuencia con la
 
 ## 7. Condición de finalización
 
-Después de desplazarnos hacia cada punto, actualizamos la posición del robot y calculamos su distancia respecto al objetivo final.
-
-Utilizamos:
+Después de procesar cada punto, volvemos a leer la posición del robot, calculamos la distancia al objetivo final e imprimimos ese valor en la consola.
 
 ```python
 distancia = math.hypot(
     target_world[0] - pose_actual.x,
     target_world[1] - pose_actual.y
 )
+print(distancia)
 ```
 
 Si la distancia es inferior a `1.0`, consideramos que hemos alcanzado el destino.
 
-En ese caso, establecemos las velocidades en cero y salimos del bucle principal:
+En ese caso, ponemos ambas velocidades a cero, guardamos la celda alcanzada y salimos del bucle `while frontier`.
 
 ```python
 if distancia < 1.0:
     HAL.setV(0)
     HAL.setW(0)
+    ultimo_objetivo = target
+    frontier = None
     break
 ```
-
-También es posible que la navegación termine si la cola `frontier` queda vacía. En ese caso, el programa deja de seleccionar nuevos puntos, aunque esto no implica necesariamente haber alcanzado el objetivo.
 
 ## Video Demostrativo
 
