@@ -124,7 +124,7 @@ padres[pose_succesor] = pose
 
 De esta forma, cada nodo almacena el siguiente punto hacia el objetivo correspondiente al mejor coste encontrado.
 
-El algoritmo finaliza cuando alcanzamos la posición inicial del robot o cuando no quedan nodos pendientes de explorar.
+El algoritmo finaliza cuando alcanzamos la posición inicial del robot o cuando no quedan nodos pendientes de explorar en este caso devolvemos None.
 
 ## 5. Reconstrucción y visualización de la ruta
 
@@ -149,9 +149,7 @@ Mostramos la ruta en el mapa e imprimimos el número de desplazamientos entre ce
 
 ### 6.1. Selección del siguiente punto
 
-Después de calcular la ruta, iniciamos el movimiento del robot.
-
-Para ello, utilizamos una segunda cola de prioridad que comienza con la posición inicial.
+Utilizamos una segunda cola de prioridad que comienza con la posición inicial.
 
 En cada iteración extraemos el nodo seleccionado:
 
@@ -175,7 +173,7 @@ heapq.heappush(
 
 De esta manera, buscamos avanzar hacia zonas de menor coste, considerando también el coste del siguiente movimiento.
 
-El robot elige en cada paso el vecino con menor suma de peso y coste de movimiento. Esta secuencia puede diferir de la ruta visualizada, que se reconstruye siguiendo `padres`.
+En cada paso se elige el vecino con menor coste
 
 ### 6.2. Cálculo de la distancia
 
@@ -263,4 +261,5 @@ if distancia < 1.0:
 
 ## Video Demostrativo
 
-[Screencast from 2026-11-19 17-20-43.webm](https://github.com/user-attachments/assets/608814e3-f03e-4f0c-b2ab-9fa7e77bc2e0)
+[Screencast from 2026-11-19 17-54-56.webm](https://github.com/user-attachments/assets/e3cdb38c-224a-48ff-a693-fa37786f7f80)
+
